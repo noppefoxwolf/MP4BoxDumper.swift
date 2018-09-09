@@ -13,6 +13,15 @@ extension InputStream {
     let length = read(&tempArray, maxLength: maxLength)
     return (tempArray, length)
   }
+  
+  func skip(length: Int) {
+    _ = read(maxLength: length)
+  }
+  
+  func readAsciiString(length: Int) -> String? {
+    let (type, _) = read(maxLength: length)
+    return String(data: Data(bytes: type), encoding: .ascii)
+  }
 }
 
 extension Array where Element == UInt8 {

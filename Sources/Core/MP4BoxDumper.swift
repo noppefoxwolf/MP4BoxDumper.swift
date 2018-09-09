@@ -11,6 +11,7 @@ public class MP4BoxDumper {
     let stream = InputStream(url: url)!
     stream.open()
     dumpBox(stream: stream, indent: 0)
+    stream.close()
   }
   
   private func dumpBox(stream: InputStream, indent: Int) {
@@ -19,13 +20,14 @@ public class MP4BoxDumper {
       let (size, _) = stream.read(maxLength: 4)
       let boxSize = size.uint32Value
       guard boxSize > 8 else { continue }
-      let (type, _) = stream.read(maxLength: 4)
-      guard let typeString = String(data: Data(bytes: type), encoding: .ascii) else { continue }
+      guard let typeString = stream.readAsciiString(length: 4) else { return }
       let indentString = (0..<indent).map({ _ in " "}).reduce("", +)
       print("\(indentString)\(typeString)(\(boxSize))")
       let (data, _) = stream.read(maxLength: Int(boxSize - 8))
       
       switch typeString {
+      case "ftyp":
+        dumpftyp(data: Data(bytes: data))
       case "moov", "trak", "mdia", "minf", "stbl", "edts",
            "mp4v", "s263", "avc1",
            "mp4a",
@@ -35,8 +37,24 @@ public class MP4BoxDumper {
         nextInputStream.open()
         dumpBox(stream: nextInputStream, indent: indent)
         indent -= 1
+        nextInputStream.close()
       default: break
       }
     }
+  }
+  
+  private func dumpftyp(data: Data) {
+    let stream = InputStream(data: data)
+    stream.open()
+    if let major = stream.readAsciiString(length: 4) {
+      print(" Major Brand: \(major)")
+    }
+    stream.skip(length: 4)
+    while stream.hasBytesAvailable {
+      if let comp = stream.readAsciiString(length: 4) {
+        print(" Compatible Brand: \(comp)")
+      }
+    }
+    stream.close()
   }
 }
